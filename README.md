@@ -8,6 +8,10 @@ This is **stage 1** of a staged build. It places **no orders**. Its job is to
 answer the only question that matters before risking capital: *do profitable,
 executable cross-venue edges actually persist?*
 
+> **Not technical?** Start with **[GET-STARTED.md](GET-STARTED.md)** — a
+> double-click launcher and step-by-step setup. The rest of this file is the
+> developer reference.
+
 ## Why this is a "lock", not instant arbitrage
 
 Both venues settle each binary outcome to **0 or 1 USDC**. So if you can buy the

@@ -166,18 +166,33 @@ def create_app(config_path: str) -> FastAPI:
     return app
 
 
+def _open_browser_soon(url: str) -> None:
+    """Open the dashboard in the default browser a moment after startup."""
+    import threading
+    import webbrowser
+
+    threading.Timer(1.5, lambda: webbrowser.open(url)).start()
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="HL<->PM arbitrage dashboard")
     parser.add_argument("--config", default="config/events.yaml")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8000)
+    parser.add_argument("--open", action="store_true", help="open the dashboard in your browser")
     args = parser.parse_args()
 
     logging.basicConfig(
         level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s"
     )
     app = create_app(args.config)
-    log.info("dashboard at http://%s:%d", args.host, args.port)
+    url = f"http://localhost:{args.port}"
+    print("\n" + "=" * 56)
+    print(f"  Dashboard running. Open this in your browser:\n      {url}")
+    print("  Leave this window open. Press Ctrl+C here to stop.")
+    print("=" * 56 + "\n")
+    if args.open:
+        _open_browser_soon(url)
     uvicorn.run(app, host=args.host, port=args.port, log_level="warning")
 
 
