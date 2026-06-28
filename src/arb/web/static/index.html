@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>HL ↔ PM Arbitrage Dashboard</title>
+<style>
+  :root {
+    --bg: #0d1117; --card: #161b22; --line: #21262d; --text: #e6edf3;
+    --muted: #8b949e; --green: #3fb950; --red: #f85149; --amber: #d29922;
+    --accent: #2f81f7;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+    font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  header { display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+    padding: 16px 24px; border-bottom: 1px solid var(--line); }
+  header h1 { font-size: 18px; margin: 0; }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 24px; display: grid; gap: 20px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 18px; }
+  .card h2 { margin: 0 0 4px; font-size: 15px; }
+  .card .hint { color: var(--muted); font-size: 12px; margin: 0 0 14px; }
+  .row { display: flex; gap: 16px; flex-wrap: wrap; align-items: end; }
+  .field { display: flex; flex-direction: column; gap: 4px; }
+  .field label { font-size: 12px; color: var(--muted); }
+  input { background: #0d1117; border: 1px solid var(--line); color: var(--text);
+    border-radius: 6px; padding: 7px 9px; font-size: 13px; min-width: 120px; }
+  input:focus { outline: none; border-color: var(--accent); }
+  button { background: var(--accent); color: white; border: none; border-radius: 6px;
+    padding: 8px 14px; font-size: 13px; cursor: pointer; }
+  button.secondary { background: #21262d; color: var(--text); }
+  button.danger { background: transparent; color: var(--red); border: 1px solid var(--red);
+    padding: 4px 10px; }
+  button:hover { filter: brightness(1.1); }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--line); font-size: 13px; }
+  th { color: var(--muted); font-weight: 600; }
+  .pill { display: inline-block; padding: 2px 9px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+  .pill.live { background: rgba(63,185,80,.15); color: var(--green); }
+  .pill.flat { background: rgba(139,148,158,.15); color: var(--muted); }
+  .pill.err { background: rgba(248,81,73,.15); color: var(--red); }
+  .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+  .num { font-variant-numeric: tabular-nums; }
+  .pos { color: var(--green); } .neg { color: var(--red); }
+  .log { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px;
+    color: var(--muted); max-height: 220px; overflow-y: auto; white-space: pre-wrap; }
+  .empty { color: var(--muted); padding: 14px 0; }
+  .banner { background: rgba(210,153,34,.12); border: 1px solid var(--amber); color: var(--amber);
+    border-radius: 8px; padding: 10px 14px; font-size: 13px; }
+  .switch { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+  details summary { cursor: pointer; color: var(--accent); font-size: 13px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>⚖️ Hyperliquid ↔ Polymarket Arbitrage</h1>
+  <span id="scanInfo" class="hint"></span>
+  <div class="switch">
+    <span class="hint">Scanning</span>
+    <button id="toggleBtn" class="secondary">…</button>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="banner">
+    Read-only monitor — it detects and displays edges but never places a trade.
+    Always verify each event pair resolves identically on both venues before acting.
+  </div>
+
+  <!-- Opportunities -->
+  <div class="card">
+    <h2>Live opportunities</h2>
+    <p class="hint">A "lock" = buy YES on one venue + NO on the other for a combined cost under $1.
+      Only pairs whose profit clears your minimum (after fees &amp; executable depth) appear here.</p>
+    <table>
+      <thead><tr><th>Event</th><th>Buy YES on</th><th>Buy NO on</th>
+        <th class="num">Cost</th><th class="num">Profit</th><th class="num">Edge</th></tr></thead>
+      <tbody id="oppBody"></tbody>
+    </table>
+    <div id="oppEmpty" class="empty">No live opportunities right now.</div>
+  </div>
+
+  <!-- Settings -->
+  <div class="card">
+    <h2>Settings</h2>
+    <p class="hint">Tuning these takes effect on the next scan and is saved automatically.</p>
+    <div class="row">
+      <div class="field"><label>Size (shares per leg)</label><input id="setSize" type="number" step="1" /></div>
+      <div class="field"><label>Min profit ($) to flag</label><input id="setMinProfit" type="number" step="0.01" /></div>
+      <div class="field"><label>Scan every (seconds)</label><input id="setInterval" type="number" step="0.5" /></div>
+      <div class="field"><label>HL fee (fraction)</label><input id="setFeeHl" type="number" step="0.001" /></div>
+      <div class="field"><label>PM fee (fraction)</label><input id="setFeePm" type="number" step="0.001" /></div>
+      <button id="saveSettings">Save settings</button>
+    </div>
+  </div>
+
+  <!-- Events -->
+  <div class="card">
+    <h2>Event pairs</h2>
+    <p class="hint">Each row maps the same real-world outcome across both venues. Status shows whether
+      the scanner is currently seeing a profitable lock.</p>
+    <table>
+      <thead><tr><th>Status</th><th>Event</th><th>Best&nbsp;profit</th><th>HL ids (yes / no)</th>
+        <th>PM ids (yes / no)</th><th></th></tr></thead>
+      <tbody id="evBody"></tbody>
+    </table>
+    <div id="evEmpty" class="empty">No event pairs yet — add one below.</div>
+
+    <details style="margin-top:16px">
+      <summary>➕ Add an event pair</summary>
+      <div style="margin-top:14px">
+        <div class="row">
+          <div class="field" style="flex:1"><label>Event name</label>
+            <input id="evName" placeholder="e.g. World Cup: Austria to beat Algeria" style="min-width:320px" /></div>
+        </div>
+        <div class="row" style="margin-top:10px">
+          <div class="field"><label>Hyperliquid YES id (# alias)</label><input id="evHlYes" placeholder="#10" /></div>
+          <div class="field"><label>Hyperliquid NO id</label><input id="evHlNo" placeholder="#11" /></div>
+          <div class="field"><label>Polymarket YES token_id</label><input id="evPmYes" placeholder="7123…" /></div>
+          <div class="field"><label>Polymarket NO token_id</label><input id="evPmNo" placeholder="7124…" /></div>
+        </div>
+        <div class="row" style="margin-top:10px">
+          <div class="field" style="flex:1"><label>Resolution note (how you verified both legs resolve the same)</label>
+            <input id="evNote" placeholder="Same match & source; draw handled identically…" style="min-width:420px" /></div>
+          <button id="addEvent">Add pair</button>
+        </div>
+        <p id="addErr" class="hint" style="color:var(--red)"></p>
+      </div>
+    </details>
+  </div>
+
+  <!-- Activity -->
+  <div class="card">
+    <h2>Activity</h2>
+    <p class="hint">Most recent scanner events.</p>
+    <div id="log" class="log"></div>
+  </div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let touched = new Set();   // settings fields the user is editing — don't overwrite them
+["setSize","setMinProfit","setInterval","setFeeHl","setFeePm"].forEach(id =>
+  $(id).addEventListener("focus", () => touched.add(id)));
+["setSize","setMinProfit","setInterval","setFeeHl","setFeePm"].forEach(id =>
+  $(id).addEventListener("blur", () => touched.delete(id)));
+
+async function api(path, method = "GET", body) {
+  const opt = { method, headers: { "Content-Type": "application/json" } };
+  if (body) opt.body = JSON.stringify(body);
+  const r = await fetch(path, opt);
+  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).detail || r.statusText);
+  return r.json();
+}
+
+function fmtAgo(ts) {
+  if (!ts) return "never";
+  const s = Math.max(0, Math.round(Date.now() / 1000 - ts));
+  return s < 60 ? `${s}s ago` : `${Math.round(s / 60)}m ago`;
+}
+
+function render(s) {
+  // header
+  $("scanInfo").textContent =
+    `last scan ${fmtAgo(s.last_scan_ts)} · ${s.last_scan_duration}s · ${s.events.length} event(s)`;
+  const tb = $("toggleBtn");
+  tb.textContent = s.scan_enabled ? "● Running — click to pause" : "❚❚ Paused — click to run";
+  tb.style.color = s.scan_enabled ? "var(--green)" : "var(--amber)";
+
+  // settings (skip fields being edited)
+  if (!touched.has("setSize")) $("setSize").value = s.settings.size;
+  if (!touched.has("setMinProfit")) $("setMinProfit").value = s.settings.min_profit;
+  if (!touched.has("setInterval")) $("setInterval").value = s.settings.poll_interval_s;
+  if (!touched.has("setFeeHl")) $("setFeeHl").value = s.settings.fee_table.hyperliquid ?? 0;
+  if (!touched.has("setFeePm")) $("setFeePm").value = s.settings.fee_table.polymarket ?? 0;
+
+  // opportunities
+  const ob = $("oppBody"); ob.innerHTML = "";
+  $("oppEmpty").style.display = s.opportunities.length ? "none" : "block";
+  for (const o of s.opportunities) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${esc(o.event)}</td><td>${o.buy_yes_on}</td><td>${o.buy_no_on}</td>
+      <td class="num">$${(o.yes_cost + o.no_cost + o.fees).toFixed(2)}</td>
+      <td class="num pos">+$${o.profit.toFixed(2)}</td>
+      <td class="num pos">${o.edge_pct.toFixed(2)}%</td>`;
+    ob.appendChild(tr);
+  }
+
+  // events
+  const eb = $("evBody"); eb.innerHTML = "";
+  $("evEmpty").style.display = s.events.length ? "none" : "block";
+  for (const e of s.events) {
+    const st = e.status;
+    let pill = `<span class="pill flat">no edge</span>`;
+    if (st.last_error) pill = `<span class="pill err" title="${esc(st.last_error)}">error</span>`;
+    else if (st.is_live) pill = `<span class="pill live">LIVE</span>`;
+    const profit = st.best_profit == null ? "—" :
+      `<span class="num ${st.best_profit >= 0 ? "pos" : "neg"}">${st.best_profit >= 0 ? "+" : ""}$${st.best_profit.toFixed(2)}</span>`;
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${pill}</td><td>${esc(e.name)}</td><td>${profit}</td>
+      <td class="num">${esc(e.hyperliquid.yes_id)} / ${esc(e.hyperliquid.no_id)}</td>
+      <td class="num">${esc(e.polymarket.yes_id)} / ${esc(e.polymarket.no_id)}</td>
+      <td><button class="danger" data-name="${esc(e.name)}">Remove</button></td>`;
+    eb.appendChild(tr);
+  }
+  eb.querySelectorAll("button.danger").forEach(b =>
+    b.onclick = () => removeEvent(b.dataset.name));
+
+  // log
+  $("log").textContent = s.log.join("\n") || "(no activity yet)";
+}
+
+function esc(x) { return String(x).replace(/[&<>"]/g, c =>
+  ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+
+async function refresh() {
+  try { render(await api("/api/state")); } catch (e) { console.error(e); }
+}
+
+$("toggleBtn").onclick = async () => {
+  const s = await api("/api/state");
+  await api("/api/scan/toggle", "POST", { enabled: !s.scan_enabled });
+  refresh();
+};
+
+$("saveSettings").onclick = async () => {
+  await api("/api/settings", "POST", {
+    size: parseFloat($("setSize").value),
+    min_profit: parseFloat($("setMinProfit").value),
+    poll_interval_s: parseFloat($("setInterval").value),
+    fee_hyperliquid: parseFloat($("setFeeHl").value),
+    fee_polymarket: parseFloat($("setFeePm").value),
+  });
+  touched.clear();
+  refresh();
+};
+
+$("addEvent").onclick = async () => {
+  $("addErr").textContent = "";
+  try {
+    await api("/api/events", "POST", {
+      name: $("evName").value.trim(),
+      resolution_note: $("evNote").value.trim(),
+      hyperliquid: { yes_id: $("evHlYes").value.trim(), no_id: $("evHlNo").value.trim() },
+      polymarket: { yes_id: $("evPmYes").value.trim(), no_id: $("evPmNo").value.trim() },
+    });
+    ["evName","evHlYes","evHlNo","evPmYes","evPmNo","evNote"].forEach(id => $(id).value = "");
+    refresh();
+  } catch (e) { $("addErr").textContent = e.message; }
+};
+
+async function removeEvent(name) {
+  if (!confirm(`Remove "${name}"?`)) return;
+  await api("/api/events/delete", "POST", { name });
+  refresh();
+}
+
+refresh();
+setInterval(refresh, 3000);
+</script>
+</body>
+</html>

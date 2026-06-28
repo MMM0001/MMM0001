@@ -16,6 +16,7 @@ from .config import load_settings
 from .detector import Detector
 from .hyperliquid_adapter import HyperliquidAdapter
 from .polymarket_adapter import PolymarketAdapter
+from .state import AppState
 
 
 async def _amain(config_path: str) -> None:
@@ -25,9 +26,10 @@ async def _amain(config_path: str) -> None:
             "no event mappings in %s — add at least one verified pair", config_path
         )
         return
+    state = AppState(settings, config_path)
     async with httpx.AsyncClient() as client:
         detector = Detector(
-            settings,
+            state,
             HyperliquidAdapter(client),
             PolymarketAdapter(client),
         )

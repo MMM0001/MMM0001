@@ -3,20 +3,24 @@
 # be reviewed by a human who has confirmed both legs resolve identically (same
 # match, same source, same handling of draw / extra time / postponement).
 #
+# You normally manage this file from the dashboard (python -m src.arb.webapp),
+# which rewrites it when you add/remove events or change settings. Comments are
+# not preserved on save — this header is just for first-time setup.
+#
 # How to fill in the ids:
 #   hyperliquid.yes_id / no_id  -> the `#` alias or asset index for each side
-#                                  of the HIP-4 outcome (confirm via the
-#                                  Hyperliquid /info `meta`/`spotMeta` endpoints)
+#                                  of the HIP-4 outcome (from the Hyperliquid
+#                                  /info meta endpoints)
 #   polymarket.yes_id / no_id   -> the ERC-1155 token_id for each outcome token
 #                                  (from the Gamma API market metadata)
 #
-# The values below are PLACEHOLDERS. The detector will fail to fetch books until
-# they point at real markets.
+# The values below are PLACEHOLDERS. The detector will report a fetch error for
+# this event until they point at real markets.
 
 settings:
   poll_interval_s: 5.0      # how often to re-scan all events
   size: 100.0               # shares per leg to size the edge against (executable depth)
-  min_profit: 0.50          # only log opportunities with > $0.50 locked profit
+  min_profit: 0.50          # only flag opportunities with > $0.50 locked profit
   fee_table:                # per-venue taker fee as a fraction of notional
     hyperliquid: 0.0        # HIP-4 fees currently zero (verify before trusting)
     polymarket: 0.0

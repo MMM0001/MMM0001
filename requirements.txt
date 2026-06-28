@@ -1,6 +1,8 @@
-# Read-only detector
+# Read-only detector + web dashboard
 httpx>=0.27
 PyYAML>=6.0
+fastapi>=0.110
+uvicorn>=0.29
 
 # Dev
 pytest>=8.0

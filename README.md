@@ -40,22 +40,41 @@ src/arb/
   edge.py                 cross-venue lock math (depth-weighted, fee-aware)
   hyperliquid_adapter.py  HIP-4 l2Book via public /info endpoint (read-only)
   polymarket_adapter.py   CLOB /book via public endpoint (read-only)
-  config.py               YAML loader
-  detector.py             poll -> normalize -> find edge -> log
-  main.py                 CLI entry point
+  config.py               YAML load + save
+  state.py                shared state the scanner writes and the dashboard reads
+  detector.py             poll -> normalize -> find edge -> record
+  webapp.py               FastAPI dashboard + JSON API (runs the scanner)
+  web/static/index.html   the dashboard page (no build step)
+  main.py                 headless CLI entry point
 config/events.yaml        human-verified event pairs (placeholders to start)
 tests/test_edge.py        unit tests for the edge math
 ```
 
-## Run
+## Run the dashboard (recommended)
+
+A browser dashboard to watch live opportunities and manage event pairs and
+settings with forms and buttons — no YAML editing required.
 
 ```bash
 pip install -r requirements.txt
+python -m src.arb.webapp --config config/events.yaml
+```
 
-# Fill config/events.yaml with real, human-verified market ids first, then:
-python -m src.arb.main --config config/events.yaml -v
+Then open **http://localhost:8000**. From there you can:
 
-pytest -q   # exercises the edge math without touching the network
+- see **live opportunities** (locks whose profit clears your minimum),
+- **pause / resume** scanning,
+- adjust **size, minimum profit, scan interval, and fees** (saved automatically),
+- **add / remove event pairs** and watch each one's status (LIVE / no edge / error).
+
+The dashboard is still **read-only** with respect to trading — it manages
+configuration and shows detected edges, but never places an order.
+
+## Run headless (no browser)
+
+```bash
+python -m src.arb.main --config config/events.yaml -v   # logs opportunities to the terminal
+pytest -q                                               # edge math tests, no network
 ```
 
 ## Roadmap

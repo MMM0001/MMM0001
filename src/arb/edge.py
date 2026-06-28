@@ -39,6 +39,22 @@ class Opportunity:
     def edge_per_share(self) -> float:
         return self.profit / self.size if self.size else 0.0
 
+    def as_dict(self) -> dict:
+        return {
+            "event": self.event,
+            "buy_yes_on": self.yes_leg.venue,
+            "buy_yes_id": self.yes_leg.market_id,
+            "buy_no_on": self.no_leg.venue,
+            "buy_no_id": self.no_leg.market_id,
+            "size": self.size,
+            "yes_cost": round(self.yes_cost, 4),
+            "no_cost": round(self.no_cost, 4),
+            "fees": round(self.fees, 4),
+            "payout": round(self.payout, 4),
+            "profit": round(self.profit, 4),
+            "edge_pct": round(self.edge_per_share * 100, 3),
+        }
+
     def describe(self) -> str:
         return (
             f"[{self.event}] size={self.size:.1f} "
