@@ -5,6 +5,19 @@
 cd "$(dirname "$0")" || exit 1
 
 echo "Starting the arbitrage dashboard..."
+echo "Folder: $(pwd)"
+
+# Guard: are the project files actually here? If not, the ZIP probably
+# wasn't extracted before running this.
+if [ ! -f "requirements.txt" ]; then
+  echo
+  echo "  I can't find the project files in this folder."
+  echo "  Make sure you UNZIPPED the download first, then double-click this"
+  echo "  launcher from inside the extracted folder."
+  echo
+  read -r -p "Press Enter to close."
+  exit 1
+fi
 
 # Find Python 3.
 PY=""
