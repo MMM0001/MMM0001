@@ -1,0 +1,34 @@
+# Event mappings: each entry pairs the SAME real-world outcome across both
+# venues. This file is the safety-critical part of the system — every pair must
+# be reviewed by a human who has confirmed both legs resolve identically (same
+# match, same source, same handling of draw / extra time / postponement).
+#
+# How to fill in the ids:
+#   hyperliquid.yes_id / no_id  -> the `#` alias or asset index for each side
+#                                  of the HIP-4 outcome (confirm via the
+#                                  Hyperliquid /info `meta`/`spotMeta` endpoints)
+#   polymarket.yes_id / no_id   -> the ERC-1155 token_id for each outcome token
+#                                  (from the Gamma API market metadata)
+#
+# The values below are PLACEHOLDERS. The detector will fail to fetch books until
+# they point at real markets.
+
+settings:
+  poll_interval_s: 5.0      # how often to re-scan all events
+  size: 100.0               # shares per leg to size the edge against (executable depth)
+  min_profit: 0.50          # only log opportunities with > $0.50 locked profit
+  fee_table:                # per-venue taker fee as a fraction of notional
+    hyperliquid: 0.0        # HIP-4 fees currently zero (verify before trusting)
+    polymarket: 0.0
+
+events:
+  - name: "World Cup: Algeria vs Austria — Austria to win"
+    resolution_note: >
+      VERIFY BEFORE USE: both legs must resolve to the same match result with
+      identical extra-time / penalties handling and the same data source.
+    hyperliquid:
+      yes_id: "#0"          # placeholder
+      no_id: "#0"           # placeholder
+    polymarket:
+      yes_id: "0"           # placeholder token_id
+      no_id: "0"            # placeholder token_id

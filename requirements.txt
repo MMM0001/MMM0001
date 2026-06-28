@@ -1,0 +1,10 @@
+# Read-only detector
+httpx>=0.27
+PyYAML>=6.0
+
+# Dev
+pytest>=8.0
+
+# Needed only when you extend to live EXECUTION (not used by the detector):
+#   hyperliquid-python-sdk   # HIP-4 order signing/placement (USDH account)
+#   py-clob-client           # Polymarket CLOB order signing/placement (USDC on Polygon)
